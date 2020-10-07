@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css'/>
+  <link href="https://fonts.googleapis.com/css?family=Athiti|Bai+Jamjuree|Chonburi|Itim|K2D|Kanit|Mitr|Pridi|Prompt|Trirong" rel="stylesheet">
+  <link rel="stylesheet" href="./css/editor.min.css">
+  <link rel="stylesheet" href="./css/editor_obj.min.css">
+
+  <title>Proto 3 : Editor that really work</title>
+</head>
+<body>
+
+  <div class="container is-fluid is-marginless">
+    <div id="editor">
+      <!-- TOOLBAR -->
+      <div class="toolbar" @click="currentFocus = -1">
+        <nav class="navbar is-dark" role="navigation" aria-label="editor navigation">
+          <div class="navbar-brand">
+            <a class="navbar-item" href="#">
+              <img src="./img/logo_color.png">
+            </a>
+            <!-- <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbarBasicExample">
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+            </a> -->
+          </div>
+        
+          <div id="navbarBasicExample" class="navbar-menu">
+            <div class="navbar-start">
+              <!-- <a class="navbar-item">
+                <span class="icon">
+                  <i class="fas fa-chevron-left"></i>
+                </span>
+              </a> -->
+              <!-- <a class="navbar-item">
+                <span class="icon">
+                  <i class="fas fa-save"></i>
+                </span>
+                <span>บันทึก</span>
+              </a> -->
+              <a class="navbar-item" onclick="confirm('ต้องการสร้างไฟล์ใหม่หรือไม่') && v.newFile()">
+                <span class="icon">
+                  <i class="fas fa-file"></i>
+                </span>
+                <span>สร้างไฟล์</span>
+              </a>
+              <a class="navbar-item" style="cursor: pointer;">
+                <span class="icon">
+                  <i class="fas fa-file-upload"></i>
+                  <input class="file-input" type="file" id="fileLoader" accept=".bptd,.json" style="cursor: pointer;">
+                </span>
+                <span>เปิดไฟล์</span>
+              </a>
+              <div class="navbar-item has-dropdown is-hoverable" >
+                <a class="navbar-link">
+                  <span class="icon">
+                    <i class="fas fa-file-download"></i>
+                  </span>
+                  <span>ดาวน์โหลด</span>
+                </a>
+
+                <div class="navbar-dropdown">
+                  <a class="navbar-item" onclick="takeHTMLSs()">
+                    PDF (*.pdf)
+                  </a>
+                  <a class="navbar-item" @click="saveFile(0)">
+                    BearPort (*.bptd)
+                  </a>
+                  <a class="navbar-item" @click="saveFile(1)">
+                    JSON (*.json)
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="navbar-middle">
+              <div class="navbar-item">
+                <div class="field">
+                  <a class="button is-dark" @click="toggleModal()" title="แก้ไขชื่อและรายละเอียด">
+                    <span>{{file.name}}&emsp;</span>
+                    <span class="icon"><i class="fas fa-edit"></i></span>
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="navbar-end">
+              <!-- <a class="navbar-item">
+                <span class="icon">
+                  <i class="fas fa-bug"></i>
+                </span>
+              </a> -->
+            </div>
+          </div>
+        </nav>
+      </div>
+      <!-- ASIDE TOOLBOX -->
+      <aside class="toolbox" @click="currentFocus = -1">
+        <div id="insert-panel" class="panel">
+          <p class="panel-heading has-background-dark has-text-white">
+            <span class="icon">
+              <i class="fas fa-plus"></i>
+            </span>
+            <span>แทรก</span>
+          </p>
+          <div class="panel-block" style="flex-wrap: wrap;">
+            <div class="column has-text-center">
+              <button class="button" @click="addElement(0)" title="เพิ่มข้อความ">
+                <span class="icon">
+                  <i class="fas fa-font"></i>
+                </span>
+              </button>
+            </div>
+            <div class="column has-text-center">
+              <button class="button" @click="addElement(1)" title="เพิ่มรูปภาพ">
+                <span class="icon">
+                  <i class="fas fa-image"></i>
+                </span>
+              </button>
+            </div>
+            <div class="column has-text-center">
+              <button class="button" @click="isStickerModalOn = true" title="เพิ่มสติกเกอร์">
+                <span class="icon">
+                  <i class="fas fa-grin-alt"></i>
+                </span>
+              </button>
+            </div>
+            <div class="column has-text-center">
+              <button class="button" @click="addElement(3)" title="เพิ่มเลขที่หน้า">
+                <span class="icon">
+                  <b>1</b>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <nav id="layer-panel" class="panel">
+          <p class="panel-heading has-background-dark has-text-white">
+            <span class="icon">
+              <i class="fas fa-layer-group"></i>
+            </span>
+            <span>เลเยอร์</span>
+          </p>
+          <div v-if="file.pages[currentPage].elements.length == 0" class="panel-block has-flex-center">
+            ไม่มีวัตถุใดๆ
+          </div>
+          <div v-else class="panel-block" v-for="o,k in file.pages[currentPage].elements" :key="k" :ref="'objText'+(file.pages[currentPage].elements.length - k)" :id="'objText'+(file.pages[currentPage].elements.length - k)" @click="setFocusObj(file.pages[currentPage].elements.length - k)">
+            <span class="panel-icon">
+              <i v-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='text'" class="fas fa-font" aria-hidden="true"></i>
+              <i v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='image'" class="fas fa-image" aria-hidden="true"></i>
+              <b v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='page-number'">1</b>
+              <i v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='sticker'" class="fas fa-grin-alt" aria-hidden="true"></i>
+            </span>
+            <span class="is-singleline">
+              [{{file.pages[currentPage].elements.length - k - 1}}]
+              <span v-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='text'">{{file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].value.split(' ').join('&nbsp;') || 'ข้อความเปล่า'}}</span>
+              <span v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='image'">รูปภาพ ({{file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].src.trim() || "ไม่มีรูปภาพ"}})</span>
+              <span v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='page-number'">เลขที่หน้า</span>
+              <span v-else-if="file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type==='sticker'">สติกเกอร์</span>
+            </span>
+            <!-- <span class="icon">
+              <i class="fas fa-chevron-circle-up"></i>
+            </span>
+            <span class="icon">
+                <i class="fas fa-chevron-circle-down"></i>
+              </span> -->
+            <span class="delete is-invisible has-background-danger" style="margin-left:auto;" :onmousedown='`confirm("ต้องการลบ \\\"[${file.pages[currentPage].elements.length - k - 1}] ${thaiType(file.pages[currentPage].elements[file.pages[currentPage].elements.length - k - 1].type)}\\\" หรือไม่?") && v.deleteElement(${file.pages[currentPage].elements.length - k - 1})`' title="ลบ"></span>
+          </div>
+        </nav>
+
+      </aside>
+      <!-- WORKSPACE -->
+      <div id="workspace" class="workspace" ref="workspace">
+        <div class="scroller">
+          <div class="bg" @mousedown="currentFocus = -1"></div>
+          <div id="paper" class="paper" :style="paperDimension" @mousedown="currentFocus = -1">
+            <!-- EDITOR AREA -->
+            <obj @thisblur="currentFocus = -1" @thisfocus="currentFocus = k" @setdata="setData(k)" v-for="o,k in file.pages[currentPage].elements" :objinfo="o" :key="k" :i="k" :page="pagePlusOne"></obj>
+          </div>
+        </div>
+        <!-- FLOATERS -->
+        <div id="floaters">
+          <!-- PAGE -->
+          <div class="pagination" onmouseover="this.style.opacity = 1" onmouseout="this.style.opacity = 0.5" :style="'opacity:0.5;transition: opacity 0.2s, width 0.2s;width:' + (file.pages.length > 1  ? 190 : 150) + 'px;'">
+            <div class="field has-addons">
+              <div class="control" v-if="file.pages.length > 1">
+                <a class="button is-dark" onclick="confirm(`ต้องการลบหน้า ${v.pagePlusOne} หรือไม่?`) && v.deletePage()" title="ลบหน้าปัจจุบัน">
+                  <span class="icon">
+                    <i class="fas fa-minus-square"></i>
+                  </span>
+                </a>
+              </div>
+              <div class="control">
+                <a class="button is-dark" @click="nextPage(false)" title="หน้าก่อนหน้า" :disabled="!currentPage">
+                  <span class="icon">
+                    <i class="fas fa-caret-left"></i>
+                  </span>
+                </a>
+              </div>
+              <div class="control">
+                <input type="text" readonly class="input is-static has-text-white has-background-dark is-dark is-nofocus" min="1" :value="pagePlusOne">
+              </div>
+              <div class="control">
+                <a class="button is-dark" @click="nextPage()" title="หน้าถัดไป" :disabled="currentPage == file.pages.length - 1">
+                  <span class="icon">
+                    <i class="fas fa-caret-right"></i>
+                  </span>
+                </a>
+              </div>
+              <div class="control">
+                <a class="button is-dark" @click="addPage()" title="เพิ่มหน้าต่อจากหน้านี้">
+                  <span class="icon">
+                    <i class="fas fa-plus-square"></i>
+                  </span>
+                </a>
+              </div>
+            </div>
+          </div>
+          <!-- MAGNIFIER -->
+          <!-- <div class="magnifier">
+            <div class="field has-addons">
+              <div class="control">
+                <a class="button is-dark" @click="zoom(false)">
+                  <span class="icon">
+                    <i class="fas fa-search-minus"></i>
+                  </span>
+                </a>
+              </div>
+              <div class="control">
+                <input type="number" class="input has-text-white has-background-dark is-dark is-nofocus" min="1" v-model="zoomFactor">
+              </div>
+              <div class="control">
+                <a class="button is-dark" @click="zoom()">
+                  <span class="icon">
+                    <i class="fas fa-search-plus"></i>
+                  </span>
+                </a>
+              </div>
+            </div>
+          </div> -->
+        </div>
+        <!-- EDITOR PANEL -->
+        <div id="editor-panel" ref="editor-panel" @click="updatePanelPos()" v-if="currentFocus != -1" class="message editor-panel has-shadow" :data-x="editorPanelPos[0]" :data-y="editorPanelPos[1]" :style="`left:${editorPanelPos[0]}px;top:${editorPanelPos[1]}px;`">
+          <div class="message-header">
+            <p>
+              <span class="icon">
+                <i class="fas fa-edit"></i>
+              </span>
+              <span>แก้ไขข้อมูล ( [{{currentFocus}}] {{thaiType(file.pages[currentPage].elements[currentFocus].type)}} )</span>
+            </p>
+            <button class="button is-danger" :onclick='`confirm("ต้องการลบ \\\"[${currentFocus}] ${thaiType(file.pages[currentPage].elements[currentFocus].type)}\\\" หรือไม่?") && v.deleteElement()`' title="ลบ">ลบ</button>
+          </div>
+          <div class="message-body">
+
+            <div class="field" v-if="file.pages[currentPage].elements[currentFocus].type ==='text'">
+              <div class="control has-icons-left">
+                <!-- <label class="label">แก้ไขข้อความ</label> -->
+                <input class="input" type="text" placeholder=" ข้อความที่ต้องการแก้ไข..." v-model="file.pages[currentPage].elements[currentFocus].value" required>
+                <span class="icon is-small is-left">
+                  <i class="fas fa-paragraph"></i>
+                </span>
+              </div>
+            </div>
+
+            <div class="field" v-if="file.pages[currentPage].elements[currentFocus].type ==='image'">
+              <div class="control has-icons-left">
+                <!-- <label class="label">ลิงก์รูปภาพ</label> -->
+                <input class="input" type="text" placeholder=" ลิงก์รูปภาพ..." v-model="file.pages[currentPage].elements[currentFocus].src" required>
+                <span class="icon is-small is-left">
+                  <i class="fas fa-link"></i>
+                </span>
+              </div>
+            </div>
+
+            <label class="label">จัดรูปแบบ</label>
+            <!-- TEXT FONT SIZE -->
+            <div v-if="file.pages[currentPage].elements[currentFocus].type ==='text' || file.pages[currentPage].elements[currentFocus].type === 'page-number'" class="field is-grouped is-grouped-centered">
+              <div class="control is-expanded has-icons-left" >
+                <div class="select">
+                  <select style="width: 16ch;" v-model="file.pages[currentPage].elements[currentFocus].font">
+                    <option>Athiti</option>
+                    <option>Bai Jamjuree</option>
+                    <option>Chonburi</option>
+                    <option>Itim</option>
+                    <option>K2D</option>
+                    <option>Kanit</option>
+                    <option>Mitr</option>
+                    <option>Pridi</option>
+                    <option>Prompt</option>
+                    <option>Trirong</option>
+                  </select>
+                </div>
+                <div class="icon is-small is-left">
+                  <i class="fas fa-font"></i>
+                </div>
+              </div>
+              <div class="control is-expanded has-icons-left">
+                <input type="number" placeholder=" ขนาด" class="input is-fullwidth" min="6" v-model="file.pages[currentPage].elements[currentFocus].size">
+                <span class="icon is-small is-left">
+                  <i class="fas fa-text-height"></i>
+                </span>
+              </div>
+              <div class="control is-expanded">
+                <input type="color" class="button" title="สี" v-model="file.pages[currentPage].elements[currentFocus].color">
+              </div>
+            </div>
+            <!-- TEXT MISC -->
+            <div v-if="file.pages[currentPage].elements[currentFocus].type ==='text' || file.pages[currentPage].elements[currentFocus].type === 'page-number'" class="field is-grouped-multiline is-grouped is-grouped-centered">
+              <div class="control">
+                <div class="buttons has-addons is-centered control">
+                  <a title="ตัวหนา" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].weight === 'bold'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],0)">
+                      <i class="fas fa-bold"></i>
+                    </span>
+                  </a>
+                  <a title="ตัวเอียง" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].style === 'italic'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],1)">
+                      <i class="fas fa-italic"></i>
+                    </span>
+                  </a>
+                  <a title="ขีดเส้นใต้" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].decoration === 'underline'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],2)">
+                      <i class="fas fa-underline"></i>
+                    </span>
+                  </a>
+                </div>
+              </div>
+              <div class="control">
+                <div class="buttons has-addons is-centered">
+                  <a title="จัดชิดซ้าย" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].align === 'left'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],3)">
+                      <i class="fas fa-align-left"></i>
+                    </span>
+                  </a>
+                  <a title="จัดกึ่งกลาง" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].align === 'center'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],4)">
+                      <i class="fas fa-align-center"></i>
+                    </span>
+                  </a>
+                  <a title="จัดชิดขวา" :class="{'button':true,'is-info':file.pages[currentPage].elements[currentFocus].align === 'right'}">
+                    <span class="icon is-small" @click="textToggle(file.pages[currentPage].elements[currentFocus],5)">
+                      <i class="fas fa-align-right"></i>
+                    </span>
+                  </a>
+                </div>
+              </div>
+              <div class="control">
+                <a title="แก้ไข CSS" class="button" @click="toggleCssModal()">
+                  <span class="icon is-small">
+                    <i class="fab fa-css3-alt"></i>
+                  </span>
+                </a>
+              </div>
+            </div>
+            <!-- IMG RADIUS HUE -->
+            <div v-if="file.pages[currentPage].elements[currentFocus].type ==='image' || file.pages[currentPage].elements[currentFocus].type ==='sticker'" class="field is-grouped is-grouped-centered">
+              <div class="control is-expanded">
+                <label>ความโค้งมน</label>
+                <input title="ความโค้งมน" style="cursor: pointer; width:100%;" type="range" min="0" max="50" v-model="file.pages[currentPage].elements[currentFocus].radius">
+              </div>
+              <!-- <div class="control is-expanded">
+                <label>เลื่อนสี</label>
+                <input style="width:100%;" type="range" min="0" max="360" v-model="file.pages[currentPage].elements[currentFocus].hue">
+              </div> -->
+              <div class="control is-expanded">
+                <label>&nbsp;</label>
+                <a title="แก้ไข CSS" class="button" @click="toggleCssModal()">
+                  <span class="icon is-small">
+                    <i class="fab fa-css3-alt"></i>
+                  </span>
+                </a>
+              </div>
+            </div>
+            <!-- IMG MISC -->
+            <!-- <div v-if="file.pages[currentPage].elements[currentFocus].type ==='image' || file.pages[currentPage].elements[currentFocus].type ==='sticker'" class="field is-grouped is-grouped-centered">
+              <div class="control is-expanded">
+                <label>ขนาดเงา</label>
+                <input type="number" placeholder=" ขนาด" class="input is-fullwidth" min="0" v-model="file.pages[currentPage].elements[currentFocus].shadowSize">
+              </div>
+              <div class="control is-expanded">
+                <label>ความเข้มเงา</label>
+                <input style="width:100%;" type="range" min="0" step="0.1" max="1" v-model="file.pages[currentPage].elements[currentFocus].shadowOpacity">
+              </div>
+              <div class="control is-expanded">
+                <label>&nbsp;</label>
+                <a class="button" @click="toggleCssModal()">
+                  <span class="icon is-small">
+                    <i class="fab fa-css3-alt"></i>
+                  </span>
+                </a>
+              </div>
+            </div> -->
+          </div>
+        </div>
+        <!-- CAPTURING -->
+        <div id="capturing" style="display:none">
+          <div>
+            <button class="button is-fullwidth is-loading is-text" title="กรุณารอสักครู่...">กรุณารอสักครู่...</button>
+            <br>
+            <div class="text">
+              กำลังสร้างรูปภาพ.<span class="loaddot one">.</span><span class="loaddot two">.</span> ({{currentPage+1}}/{{file.pages.length}})
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- FILE MODAL -->
+      <div :class="{'modal':true, 'is-active':isFileModalOn}">
+        <div class="modal-background" @click="isFileModalOn = false"></div>
+        <div class="modal-card">
+          <header class="modal-card-head has-background-dark">
+            <p class="modal-card-title has-text-white">
+              <span class="icon">
+                <i class="fas fa-edit"></i>
+              </span>
+              <span>
+                แก้ไขข้อมูล
+              </span>
+            </p>
+            <button class="button is-success" @click="toggleModal()" title="บันทึกข้อมูล">บันทึกข้อมูล</button>
+            <!-- <button class="delete" aria-label="close"></button> -->
+          </header>
+          <section class="modal-card-body">
+            <div class="field">
+              <label class="label">ชื่อไฟล์</label>
+              <div class="control">
+                <input class="input" type="text" placeholder=" ชื่อไฟล์..." v-model="tempFileName" required>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">รายละเอียด</label>
+              <div class="control">
+                <textarea class="textarea" placeholder=" รายละเอียด Portfolio..." v-model="tempFileDesc"></textarea>
+              </div>
+            </div>
+          </section>
+        </div>
+        <button class="modal-close is-large" aria-label="close" @click="isFileModalOn = false" title="ปิด"></button>
+      </div>
+      <!-- CUSTOM CSS MODAL -->
+      <div :class="{'modal':true, 'is-active':isCssModalOn}" v-if="currentFocus != -1">
+        <div class="modal-background" @click="isCssModalOn = false"></div>
+        <div class="modal-card">
+          <header class="modal-card-head has-background-dark">
+            <p class="modal-card-title has-text-white">
+              <span class="icon">
+                <i class="fab fa-css3-alt"></i>
+              </span>
+              <span>
+                แก้ไข CSS ( [{{currentFocus}}] {{thaiType(file.pages[currentPage].elements[currentFocus].type)}} )
+              </span>
+            </p>
+            <button class="button is-warning" @click="toggleCssModal()" title="บันทึกข้อมูล">บันทึกข้อมูล</button>
+          </header>
+          <section class="modal-card-body">
+            <div class="field">
+              <div class="control">
+                <textarea v-model="tempCss" class="textarea is-warning" placeholder="คำเตือน: กรุณาแก้ไขด้วยความระมัดระวัง ควรมีความรู้ทาง CSS"></textarea>
+              </div>
+            </div>
+          </section>
+        </div>
+        <button class="modal-close is-large" aria-label="close" @click="isCssModalOn = false" title="ปิด"></button>
+      </div>
+      <!-- STICKERS MODAL -->
+      <div :class="{'modal':true, 'is-active':isStickerModalOn}">
+        <div class="modal-background" @click="isStickerModalOn = false"></div>
+        <div class="modal-card">
+          <header class="modal-card-head has-background-dark">
+            <p class="modal-card-title has-text-white">
+              <span class="icon">
+                <i class="fas fa-grin-alt"></i>
+              </span>
+              <span>
+                เพิ่มสติกเกอร์
+              </span>
+            </p>
+            <!-- <button class="button is-success" @click="toggleModal()">บันทึกข้อมูล</button> -->
+            <button class="delete" aria-label="close" @click="isStickerModalOn = false" title="ปิด"></button>
+          </header>
+          <section class="modal-card-body">
+            <div class="columns is-multiline">
+              <div class="column is-flex has-flex-middle is-one-quarter" v-for="img,i in stickersList">
+                <div class="box">
+                  <a @click="addSticker(i)">
+                    <img :src="'./stickers/'+img" :alt="img">
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <!-- SCREENSHOT MODAL -->
+      <div :class="{'modal':true, 'is-active':isScreenshoted}">
+        <div class="modal-background" @click="isScreenshoted = false"></div>
+        <div class="modal-card">
+          <header class="modal-card-head has-background-dark">
+            <p class="modal-card-title has-text-white">
+              <span class="icon">
+                <i class="fas fa-magic"></i>
+              </span>
+              ตัวอย่าง Portfolio
+            </p>
+            <button class="delete" aria-label="close" @click="isScreenshoted = false" title="ปิด"></button>
+          </header>
+          <div class="modal-card-body">
+            <div id="canvas-list"></div>
+            <hr>
+            <button class="button is-primary is-fullwidth" onclick="pdf()" title="ดาวน์โหลด">
+              <span class="icon">
+                <i class="fas fa-file-download"></i>
+              </span>
+              <span>ดาวน์โหลด</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/interactjs@1.3.4/dist/interact.min.js"></script>
+  <script src="./js/lz-string.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.4.1/jspdf.min.js" integrity="sha256-tzkPfJgrAehd0mUYdxwWvn+TQrk2VjRJL/xP9iW5fhk=" crossorigin="anonymous"></script>
+  <script src="./js/html2canvas.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
+
+  <script src="./js/editor.min.js"></script>
+  <script src="./js/editor_obj.min.js"></script>
+  <script>
+    var takeHTMLSs = function () {
+      var prevPage = v.currentPage;
+      var pages = v.file.pages.length;
+      
+      document.getElementById("capturing").style.display = 'flex';
+      document.getElementById("floaters").style.display = 'none';
+      
+      var currentPage = -1;
+      var isloading = true;
+
+      var capturePage = async function(){
+        currentPage++;
+        v.currentPage = currentPage;
+        Vue.nextTick().then(function(){
+          html2canvas(document.querySelector("#paper"), {
+            allowTaint: false,
+            useCORS: true,
+            onclone:  function(doc) {
+              doc.querySelector('#paper').style.transform = 'none';
+              Array(...doc.querySelectorAll('.editor-obj .resizers')).forEach(el => {
+                el.style.border = "none";
+              });
+              Array(...doc.querySelectorAll('.editor-obj .content')).forEach(el => {
+                el.style.lineHeight = "1.2";
+              });
+            },
+            scale: 5
+          }).then(canvas => {
+            canvas.style = "";
+            isloading && (document.getElementById("canvas-list").innerHTML = '');
+            isloading = false;
+            document.getElementById("canvas-list").appendChild(canvas);
+            if(currentPage < pages-1){
+              return capturePage();
+            }else{
+              document.getElementById("capturing").style.display = 'none';
+              document.getElementById("floaters").style.display = 'block';
+              v.isScreenshoted = true;
+              v.currentPage = prevPage;
+              return 1;
+            }
+          });
+        });
+      }
+      capturePage();
+    };
+
+    var pdf = function(){
+      // only jpeg is supported by jsPDF
+      var pdf = new jsPDF("p", "mm", "a4");
+      var imgList = [...document.querySelectorAll("#canvas-list>canvas")];
+      imgList.forEach(cv => {
+        pdf.addPage();
+        var imgData = cv.toDataURL("image/jpeg", 1.0);
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+      });
+
+      pdf.deletePage(1);
+
+      pdf.save(v.file.name + ".pdf");
+    }
+  </script>
+</body>
+</html>
